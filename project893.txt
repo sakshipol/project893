@@ -1,0 +1,740 @@
+PRACTICAL 1
+Q.The dataset ToyotaCorolla.xls contains data on used
+cars on sale during the late summer of 2004 in The
+Netherlands. It has 1436 records containing details on
+38 attributes, including Price, Age, Kilometers, HP, and
+other specifications
+i. Explore the data using the data visualization (matrix plot)
+capabilities of XLMiner. Which of the pairs among the variables seem
+to be correlated?
+library("ggplot2")
+library('ggpubr')
+rm(list=ls())
+ToyotaCorolla=read.csv("ToyotaCorolla.csv")
+drops = c("Id","Model","Fuel_Type","Color","Cylinders")
+TCData = ToyotaCorolla[,!colnames(ToyotaCorolla) %in% drops]
+cormatrix = suppressWarnings(cor(TCData))
+data.frame(cormatrix)
+heatmap(cormatrix, Rowv = NA, Colv = NA)
+TCData$Boardcomputer = as.factor(TCData$Boardcomputer)
+TCData$Powered_Windows = as.factor(TCData$Powered_Windows)
+TCData$Central_Lock = as.factor(TCData$Central_Lock)
+TCData$Radio = as.factor(TCData$Radio)
+TCData$Radio_cassette = as.factor(TCData$Radio_cassette)
+#price/age/year
+prcageyr=ggplot(ToyotaCorolla,aes(ToyotaCorolla$Age_08_04,Price,colour=M
+fg_Year))+ geom_point()
+#mfg_year/bpardcomp
+mfgbcmp=ggplot(ToyotaCorolla,aes(x=TCData$Mfg_Year,fill=Boardcomputer
+==1))+ geom_histogram(binwidth=1,position='fill')
+#powerwindow/centrallock
+powcent=ggplot(ToyotaCorolla,aes(x=TCData$Powered_Windows,y=TCData$
+Central_Lock))+ geom_col()
+#radio/cassette
+radcas=ggplot(ToyotaCorolla,aes(x=TCData$Radio,y=TCData$Radio_cassette)
+)+geom_col()
+ggarrange(prcageyr,mfgbcmp,powcent,radcas,nrow=2,ncol=2)
+ii. We plan to analyze the data using various data mining techniques
+described in future chapters. Prepare the data for use as follows: a.
+The dataset has two categorical attributes, Fuel Type and Metallic. b.
+Describe how you would convert these to binary variables. c. Confirm
+this using R function to transform categorical data into dummies.
+fuel_type_dummy <- model.matrix(~Fuel_Type - 1 , data = toyotaCorolla)
+data_with_dummies <-
+cbind(toyotaCorolla,fuel_type_dummy,metallic_dummy)
+data_with_dummies <- data_with_dummies[, !(colnames(data_with_dummies)
+%in% c("Fuel_Type"))]
+
+----------------------------------------------------------
+PRACTICAL 2
+Shipments of Household Appliances:
+The file ApplianceShipments.csv contains the series of
+quarterly shipments (in millions of dollars) of US
+household appliances between 1985 and 1989.
+library(tidyverse)
+library(ggplot2)
+A. Create a well-formatted time plot of the data using Excel.
+# load dataset
+apps <- read.csv("ApplianceShipments.csv")
+# separate Quarter variable into 2
+apps_yq <- separate(apps, Quarter, c("Quarter", "Year"))
+# create variable with numerical quarter
+apps_yq$Quarter_Num <- sub('.', '', apps_yq$Quarter)
+# change order of variables
+apps_yq <- select(apps_yq, Quarter_Num, Year, Quarter, Shipments)
+# create new variable with year and quarter
+apps_yq <- unite(apps_yq, "Year_Quarter", Year:Quarter_Num, sep = ".",
+remove = FALSE)
+# change to factor
+apps_yq$Quarter <- as.factor(apps_yq$Quarter)
+# change to numeric
+apps_yq <- mutate_if(apps_yq, is.character, as.numeric)
+# plot data
+ggplot(apps_yq,aes(Year_Quarter,Shipments)) + geom_line() +
+geom_label(aes(label=Quarter,color = Quarter),show.legend = FALSE) +  theme_light() + labs(title = "Appliance Shipments from 1985 to 1989",x =
+"Year",y = "Shipments")
+B. Does there appear to be a quarterly pattern? For a closer view of
+the patterns, zoom in to the range of 3500 - 5000 on the y-axis.
+ggplot(apps_yq,aes(Year_Quarter,Shipments)) + geom_line() +
+scale_y_continuous(limits = c(3500,5000)) +
+ geom_label(aes(label=Quarter,color = Quarter),show.legend = FALSE) +
+ theme_light() + labs(title = "Appliance Shipments from 1985 to 1989",x =
+"Year",y = "Shipments")
+Yes, there appears quarterly pattern in the above time series. The time series plot
+shows a repeating pattern each year (increasing shipment in Q2 and Q3 and
+decreasing shipments in Q1 and Q4).
+C. Create one chart with four separate lines, one line for each of Q1,
+Q2, Q3,and Q4. In R, this can be achieved by generating a
+data.frame for each quarter Q1, Q2, Q3, Q4, and then plotting them
+as separate series on the line graph. Zoom in to the range of 3500–
+5000 on the y-axis. Does there appear to be a difference between
+quarters?
+label_text <- filter(apps_yq,Year == 1989)
+ggplot(apps_yq,aes(Year,Shipments,color = Quarter)) + geom_line() +
+ geom_text_repel(data = label_text,aes(label=Quarter),na.rm = TRUE,nudge_x
+= 1,show.legend = FALSE) + theme_light() + labs(title = "Appliance Shipments
+from 1985 to 1989",x = "Year",y = "Shipments")
+D. Using R, create a line graph of the series at a yearly aggregated
+level (i.e., the total shipments in each year).
+apps_yq <- apps_yq %>% group_by(Year) %>%
+ mutate(yearly_ship = sum(Shipments)) %>% ungroup()
+ggplot(apps_yq,aes(Year,yearly_ships)) + geom_line() + theme_light() +
+labs(title = "Appliance Shipments from 1985 to 1989",x = "Year",y =
+"Shipments")
+
+
+-----------------------------------------------------------
+
+PRACTICAL 3
+Q.Sales of Toyota Corolla Cars.
+The file ToyotaCorolla.xls contains data on used cars
+(Toyota Corollas) on sale during late summer of 2004 in
+The Netherlands. It has 1436 records containing details
+on 38 attributes, including Price, Age, Kilometers, HP,
+and other specifications. The goal will be to predict the
+price of a used Toyota Corolla based on its
+specifications.
+car.df <- read.csv("ToyotaCorolla.csv")
+View(car.df)
+summary(car.df)
+# partition
+set.seed(22)
+train.index <- sample(c(1:dim(car.df)[1]), dim(car.df)[1]*0.6)
+train.df <- car.df[train.index, ]
+valid.df <- car.df[-train.index,]
+A.Run a regression tree (RT) with outcome variable Price and
+predictors Age_08_04, KM, Fuel_Type, HP, Automatic, Doors,
+Quarterly_Tax, Mfg_Guarantee, Guarantee_Period, Airco,
+Automatic_Airco, CD_Player, Powered_Windows, Sport_Model,
+and Tow_Bar. Keep the minimum number of records in a terminal
+node to 1, maximum number of tree levels to 100, and cp = 0:001,
+to make the run least restrictive.
+library(rpart)
+tr <- rpart(Price ~ Age_08_04 + KM + Fuel_Type + HP + Automatic +
+Doors + Quarterly_Tax +
+ Mfr_Guarantee + Guarantee_Period + Airco + Automatic_airco +
+CD_Player +
+ Powered_Windows + Sport_Model + Tow_Bar,data = train.df,
+ method = "anova", minbucket = 1, maxdepth = 30, cp = 0.001)
+library(rpart.plot)
+prp(tr)
+A.i. Which appear to be the three or four most important car
+specifications for predicting the car’s price?
+t(t(tr$variable.importance))
+A.ii. Compare the prediction errors of the training and validation sets
+by examining their RMS error and by plotting the two boxplots. What
+is happening with the training set predictions? How does the
+predictive performance of the validation set compare to the training
+set? Why does this occur?
+library(forecast)
+accuracy(predict(tr, train.df), train.df$Price)
+
+accuracy(predict(tr, valid.df), valid.df$Price)
+#to calculate the errors you need to subtract the prediction from the actual
+train.err <-predict(tr, train.df) -train.df$Price
+valid.err <-predict(tr, valid.df) -valid.df$Price
+#create a data fram from the training and validation errors in order to plot
+err <-data.frame(Error =c(train.err, valid.err),
+ Set =c(rep("Training", length(train.err)),
+rep("Validation", length(valid.err))))
+#create your error box plots
+boxplot(Error~Set, data=err)
+The training data has fewer error outliers and when compared to the validation data it
+appears to be performing better, but still within a similar range as our validation data. This
+is a good thing because it indicates that we have split our training data into a large
+enough sample size. If the validation had been more accurate we would need to consider
+the possibility that we had underfit the data.
+A.iii. Prune the full tree using the cross-validation error. Compared to
+the full tree, what is the predictive performance for the validation set?
+tr.shallow <- rpart(Price ~ Age_08_04 + KM + Fuel_Type +
+ HP + Automatic + Doors + Quarterly_Tax +
+ Mfr_Guarantee + Guarantee_Period + Airco +
+ Automatic_airco + CD_Player + Powered_Windows +
+ Sport_Model + Tow_Bar, data = train.df)
+prp(tr.shallow)
+
+accuracy(predict(tr.shallow, train.df), train.df$Price)
+accuracy(predict(tr.shallow, valid.df), valid.df$Price)
+As expected, compared to the full tree, our pruned tree performs worse on the training set
+(RMSE=1343 compared to 993 for the full tree). The validation set also performed worse
+better(RMSE=1441 compared to 1319), but the pruned validation set performed better than
+the pruned training set. This indicates that we have underfit our model.
+
+B. Let us see the effect of turning the price variable into a categorical
+variable. First, create a new variable that categorizes price into 20
+bins. Now repartition the data keeping Binned_Price instead of Price.
+Run a classification tree with the same set of input variables as in the
+RT, and with Binned_Price as the output variable. Keep the minimum
+number of records in a terminal node to 1.
+bins <- seq(min(car.df$Price),
+ max(car.df$Price),
+ (max(car.df$Price) - min(car.df$Price))/20)
+bins
+
+#use bincode to determine the bin assignments
+#NOTE: if you vie Binned_Price you can see the assignments
+Binned_Price <- .bincode(car.df$Price,
+ bins,
+ include.lowest = TRUE)
+#convert the Binned_Price to factors for classification
+Binned_Price <- as.factor(Binned_Price)
+Binned_Price
+#add the binned price to the data frame based on the indexes
+#this will allow us to identify the training and validation data frames
+train.df$Binned_Price <- Binned_Price[train.index]
+valid.df$Binned_Price <- Binned_Price[-train.index]
+library(tree)
+cl_tr<- tree(binned_price ~ Age_08_04 + KM + Fuel_Type +
+ + HP + Automatic + Doors + Quarterly_Tax +
+ + Mfr_Guarantee + Guarantee_Period + Airco +
+ + Automatic_airco + CD_Player + Powered_Windows +
+ + Sport_Model + Tow_Bar, data = train.df)
+plot(cl_tr)
+text(cl_tr,pretty=0)
+
+B.i Predict the price, using the RT and the CT, of a used Toyota
+Corolla with some other specifications
+new.record <- data.frame(Age_08_04 = 77,
+ KM = 117000,
+ Fuel_Type = "Petrol",
+ HP = 110,
+ Automatic = 0,
+ Doors = 5,
+ Quarterly_Tax = 100,
+ Mfr_Guarantee = 0,
+ Guarantee_Period = 3,
+ Airco = 1,
+ Automatic_airco = 0,
+CD_Player = 0, 
+Powered_Windows = 0,
+ Sport_Model = 0,
+ Tow_Bar = 1)
+price_rt <- predict(tr,newdata = new.record)
+price_ct <- bins[predict(cl_tr,newdata = new.record,type = "class")]
+cat(paste("Regression Price Estimate: ",scales::dollar(price_rt,0.01)),
+ paste("Classification Price Estimate: ",scales::dollar(price_ct,0.01)),
+ sep='\n')
+
+-------------------------------------------------------------
+
+PRACTICAL 4
+Q.Predicting Housing Median Prices.
+The file BostonHousing.xls contains information
+on over 500 census tracts in Boston, where for
+each tract 14 variables are recorded. The last
+column (CAT.MEDV) was derived from MEDV,
+such that it obtains the value 1 if MEDV>30 and 0
+otherwise. Consider the goal of predicting the
+median value (MEDV) of a tract, given the
+information in the first 13 columns.
+housing.df <- read.csv("BostonHousing.csv")
+set.seed(123)
+train.index <- sample(row.names(housing.df), 0.6*dim(housing.df)[1])
+valid.index <- setdiff(row.names(housing.df), train.index)
+train.df <- housing.df[train.index, -14]
+valid.df <- housing.df[valid.index, -14]
+A. Perform a k-NN prediction with all 12 predictors (ignore the
+CAT.MEDV column), trying values of k from 1 to 5. Make sure to
+normalize the data, and choose function knn() from package class
+rather than package FNN. To make sure R is using the class
+package (when both packages are loaded), use class::knn(). What
+is the best k? What does it mean?
+# initialize normalized training, validation data, complete data
+frames to originals
+train.norm.df <- train.df
+valid.norm.df <- valid.df
+housing.norm.df <-housing.df
+# use preProcess() from the caret package to normalize Income and
+Lot_Size.
+library(caret)
+norm.values <- preProcess(train.df, method=c("center", "scale"))
+train.norm.df <- as.data.frame(predict(norm.values, train.df))
+valid.norm.df <- as.data.frame(predict(norm.values, valid.df))
+housing.norm.df <- as.data.frame(predict(norm.values, housing.df))
+#initialize a data frame with two columns: k, and accuracy
+accuracy.df <- data.frame(k = seq(1, 5, 1), RMSE = rep(0, 5))
+# compute knn for different k on validation.
+for(i in 1:5){
+ knn.pred<-class::knn(train = train.norm.df[,-13],
+ test = valid.norm.df[,-13],
+ cl = train.df[,13], k = i)
+ accuracy.df[i,2]<-RMSE(as.numeric(as.character(knn.pred)),valid.df[,13])
+}
+accuracy.df
+k=1 is the best fit since it has the lowest RMSE (meaning it has the highest accuracy rate
+of the values tried) However, we do not want to use k=1 because of overfit so we will use
+the next lowest RMSE (k=2). This means that, for a given record, MEDV is predicted by
+averaging the MEDVs for the 2 closest records, proximity being measured by the distance
+between the vectors of predictor values.
+
+B. Predict the MEDV for a tract with the following
+information, using the best k:
+new.df<-data.frame(0.2,0,7,0,0.538,6,62,4.7,4,307,21,10)
+names(new.df)<-names(train.norm.df)[-12]
+new.df
+new.norm.values <- preProcess(new.df, method=c("center",
+"scale"))
+new.norm.df <- predict(new.norm.values, newdata = new.df)
+#predict the MEDV
+new.knn.pred <- class::knn(train = train.norm.df[,-12],
+ test = new.norm.df,
+ cl = train.df$medv, k = 2)
+new.knn.pred
+new.accuracy.df<-
+RMSE(as.numeric(as.character(new.knn.pred)),valid.df[,13])
+new.accuracy.df
+C. Why is the error of the training data zero?
+ The error of the training data being zero typically occurs
+in scenarios where the model perfectly fits the training
+data. This means that the model has effectively
+memorized the training data, capturing all the patterns
+and relationships present in it.
+D. Why is the validation data error overly optimistic
+compared to the error rate when applying this k-NN
+predictor to new data?
+Since our validation data was part of the same set that our traing
+data was from (with both being derived from our orignial
+dataset)our results are overly optimistic because our model was
+essentialy trained to solove that specific data set.
+The validation data error can be overly optimistic compared to the
+error rate when applying the k-NN predictor to new data due to
+overfitting or data leakage
+E. If the purpose is to predict MEDV for several thousands
+of new tracts, what would be the disadvantage of using kNN prediction? List the operations that the algorithm goes
+through in order to produce each prediction.
+The major disadvantage would be the amount of time and comparrisions that would need
+to be done to determine the distance between each new tract and ALL the examples in the
+data. Then it would need to average those values of its nearest neighbors to predict the
+MEDV. The algorithm would have to go through the following operations to produce each
+prediction:
+1. Compute the Mahalanobis distance from the new tract and the example data set.
+2. Order the example data points by increasing distance.
+3. Performe a cross validation based on RMSE to find the best number k of nearest
+neighbors.
+4. Calculate an inverse distance weighted average with the k-nearest multivariate
+neighbors.
+
+-------------------------------------------------------------------
+PRACTICAL 5
+Q. Automobile Accidents:
+The file Accidents.xls contains information on 42,183
+actual automobile accidents in 2001 in the United
+States that involved one of three levels of injury: NO
+INJURY, INJURY, or FATALITY. For each accident,
+additional information is recorded, such as day of
+week, weather conditions, and road type. A firm might
+be interested in developing a system for quickly
+classifying the severity of an accident based on initial
+reports and associated data in the system (some of
+which rely on GPS-assisted reporting). Our goal here is
+to predict whether an accident just reported will
+involve an injury (MAX_SEV_IR = 1 or 2) or will not
+(MAX_SEV_IR = 0). For this purpose, create a dummy
+variable called INJURY that takes the value “yes” if MAX_SEV_IR = 1 or 2, and otherwise “no.”
+accidents.df <- read.csv("accidentsFull.csv")
+accidents.df$INJURY <- ifelse(accidents.df$MAX_SEV_IR>0, "yes", "no")
+head(accidents.df)
+
+A.Using the information in this dataset, if an accident has just been
+reported and no further information is available, what should the
+prediction be? (INJURY = Yes or No?)Why?
+inj.tbl <- table(accidents.df$INJURY)
+show(inj.tbl)
+inj.prob =
+scales::percent(inj.tbl["yes"]/(inj.tbl["yes"]+inj.tbl["no"]),0.01)
+inj.prob
+Reason :
+Since ~51% of the accidents in our data set resulted in an accident, we should
+predict that an accident will result in injury because it is slightly more likley.
+B. Select the first 12 records in the dataset and look only at the
+response (INJURY) and the two predictors WEATHER_R and
+TRAF_CON_R.
+for (i in c(1:dim(accidents.df)[2])){
+ accidents.df[,i] <- as.factor(accidents.df[,i])
+}
+new.df <-
+accidents.df[1:12,c("INJURY","WEATHER_R","TRAF_CON_R")]
+new.df
+Bi. Create a pivot table that examines INJURY as a function of the 2
+predictors for these 12records. Use all 3 variables in the pivot
+table as rows/columns, and use counts for the cells.
+library(rpivotTable)
+rpivotTable::rpivotTable(new.df)
+Bii. Compute the exact Bayes conditional probabilities of an injury
+(INJURY = Yes) giventhe six possible combinations of the
+predictors.
+#To find P(Injury=yes|WEATHER_R = 1, TRAF_CON_R =0):
+numerator1 <- 2/3 * 3/12
+denominator1 <- 3/12
+prob1 <- numerator1/denominator1
+#To find P(Injury=yes|WEATHER_R = 1, TRAF_CON_R =1):
+numerator2 <- 0 * 3/12
+denominator2 <- 1/12
+prob2 <- numerator2/denominator2
+#To find P(Injury=yes| WEATHER_R = 1, TRAF_CON_R =2):
+numerator3 <- 0 * 3/12
+denominator3 <- 1/12
+prob3 <- numerator3/denominator3
+#To find P(Injury=yes| WEATHER_R = 2, TRAF_CON_R =0):
+numerator4 <- 1/3 * 3/12
+denominator4 <- 6/12
+prob4 <- numerator4/denominator4
+#To find P(Injury=yes| WEATHER_R = 2, TRAF_CON_R =1):
+numerator5 <- 0 * 3/12
+denominator5 <- 1/12
+prob5 <- numerator5/denominator5
+#To find P(Injury=yes| WEATHER_R = 2, TRAF_CON_R =2):
+numerator6 <- 0 * 3/12
+denominator6 <- 0
+prob6 <- numerator6/denominator6
+a<-c(1,2,3,4,5,6)
+b<-c(prob1,prob2,prob3,prob4,prob5,prob6)
+prob.df<-data.frame(a,b)
+names(prob.df)<-c('Option #','Probability')
+library(dplyr)
+prob.df %>% mutate_if(is.numeric, round, 3)
+Biii. Classify the 12 accidents using these probabilities and a cutoff
+of 0.5
+new.df.prob<-new. df
+head(new.df.prob)
+prob.inj <- c(0.667, 0.167, 0, 0, 0.667, 0.167, 0.167, 0.667, 0.167,
+0.167, 0.167, 0)
+new.df.prob$PROB_INJURY<-prob.inj
+new.df.prob$PREDICT_PROB<-
+ifelse(new.df.prob$PROB_INJURY>.5,"yes","no")
+new.df.prob
+Biv. Compute manually the naive Bayes conditional probability of
+an injury given WEATHER_R = 1 and TRAF_CON_R = 1.
+man.prob <- 2/3 * 0/3 * 3/12
+man.prob
+Bv. Run a naive Bayes classifier on the 12 records and 2 predictors
+using XLMiner. Checkdetailed report to obtain probabilities and
+classifications for all 12 records. Compare this to the exact Bayes
+classification. Are the resulting classifications equivalent? Is the
+ranking (= ordering) of observations equivalent?
+library(e1071)
+library(klaR)
+library(caret)
+nb<-naiveBayes(INJURY ~ ., data = new.df)
+predict(nb, newdata = new.df,type = "raw")
+x=new.df[,-3]
+y=new.df$INJURY
+model <- train(x,y,'nb', trControl = trainControl(method =
+'cv',number=10))
+model
+model.pred<-predict(model$finalModel,x)
+model.pred
+table(model.pred$class,y)
+new.df.prob$PREDICT_PROB_NB<-model.pred$class
+new.df.prob
+
+C. Let us now return to the entire dataset. Partition the data into
+training/validation sets(use XLMiner’s ”automatic” option for
+partitioning percentages).
+set.seed(22)
+train.index <- sample(c(1:dim(accidents.df)[1]),
+dim(accidents.df)[1]*0.6)
+train.df <- accidents.df[train.index,]
+valid.df <- accidents.df[-train.index,]
+Cii. Run a naive Bayes classifier on the complete training set with
+the relevant predictors(and INJURY as the response). Note that all
+predictors are categorical.
+Show the classification matrix. iii. What is the overall error for the
+validation set?
+vars <- c("INJURY", "HOUR_I_R", "ALIGN_I" ,"WRK_ZONE",
+"WKDY_I_R",
+ "INT_HWY", "LGTCON_I_R", "PROFIL_I_R", "SPD_LIM",
+"SUR_COND",
+ "TRAF_CON_R", "TRAF_WAY", "WEATHER_R")
+nbTotal <- naiveBayes(INJURY ~ ., data = train.df[,vars])
+confusionMatrix(train.df$INJURY, predict(nbTotal, train.df[, vars]), positive = "yes")
+ner=1-.5384
+nerp=scales::percent(ner,0.01)
+confusionMatrix(valid.df$INJURY, predict(nbTotal, valid.df[, vars]),
+positive = "yes")
+ver=1-.5354
+verp=scales::percent(ver,0.01)
+paste("Overall Error: ",verp)
+Ciii. What is the percent improvement relative to the naive rule
+(using the validation set)?
+imp=ver-ner
+paste("The percent improvement is ",scales::percent(imp,0.01))
+[1] "The percent improvement is 0.30%"
+Civ. Examine the conditional probabilities output. Why do we get
+a probability of zero forP(INJURY = No | SPD_LIM = 5)?
+options(digits = 2)
+nbTotal
+
+We do not get true probability of zero for no injury in accidents under speed limit of 5 because we can
+never be entirely sure something will not happen. However, considering the highly unlikely fact of
+sustaining an injury while in a car accident at such a low speed, it makes sense that the probability is
+quite close to 0.
+
+-------------------------------------------------------------------
+PRACTICAL 6
+Q. Car Sales.
+Consider again the data on used cars
+(ToyotaCorolla.xls) with 1436 records and details on
+38 attributes, including Price, Age, KM, HP, and other
+specifications. The goal is to predict the price of a
+used Toyota Corolla based on its specifications.
+Toyotacorolla <- read.csv("ToyotaCorolla.csv")
+Toyotacorolla1 <- Toyotacorolla[,c(
+ "Price", "Age_08_04", "KM", "Fuel_Type", "HP", "Automatic", "Doors",
+"Quarterly_Tax","Mfr_Guarantee", "Guarantee_Period","Airco",
+"Automatic_airco", "CD_Player", "Powered_Windows", "Sport_Model",
+"Tow_Bar"
+)]
+library(dplyr)
+library(fastDummies)
+Toyotacorolla2 <- Toyotacorolla1 %>%
+dummy_cols(select_columns=c('Fuel_Type'))
+Toyotacorolla3 <- subset(Toyotacorolla2,select = -
+c(Fuel_Type,Fuel_Type_CNG))
+Toyotacorolla3[is.na(Toyotacorolla3)]<-0
+data_normalize <- preProcess(Toyotacorolla3, `method=c("range"),
+na.remove=TRUE)
+data_normalize2 <- predict(data_normalize, as.data.frame(Toyotacorolla3))
+ind <- sample(2, nrow(data_normalize2), replace=TRUE, prob=c(0.8, 0.2))
+tdata <- data_normalize2[ind==1, ] #ind==1 means the first sample
+vdata<- data_normalize2[ind==2, ] #ind==2 means the second sample
+A. Fit a neural network model to the data. Use a single hidden layer
+with 2 nodes.
+Record the RMS error for the training data and the validation data.
+Repeat the process, changing the number of hidden layers and nodes
+to {single layer with 5 nodes}, {two layers, 5 nodes in each layer}.
+library(neuralnet)
+nn <- neuralnet(data = tdata, Price ~., hidden=2)
+plot(nn, rep="best")
+
+pred <- compute(nn, tdata)$net.result
+library(Metrics)
+error <- rmse(tdata[, "Price"], pred)
+error
+nn <- neuralnet(data = vdata, Price ~., hidden=2)
+plot(nn, rep="best")
+pred <- compute(nn, vdata)$net.result
+error <- rmse(vdata[, "Price"], pred) #We use rmse() function from the
+Metrics package
+error
+B. Fitting a neural network model to the data using single layer
+with 5 nodes
+nn <- neuralnet(data = tdata, Price ~., hidden=c(5)) #5 nodes, 1 layers
+plot(nn, rep="best")
+pred <- compute(nn, tdata)$net.result
+error <- rmse(tdata[, "Price"], pred) #We use rmse() function from the
+Metrics package
+error
+
+nn <- neuralnet(data = vdata, Price ~., hidden=c(5)) # 5 nodes, 1 layers
+plot(nn,rep="best")
+
+pred <- compute(nn, vdata)$net.result
+error <- rmse(vdata[, "Price"], pred)
+error
+
+c. Fitting a neural network model to the data using two layers and 5
+nodes in each layer
+nn <- neuralnet(data = tdata, Price ~., hidden=c(5,5)) #5 nodes, 2 layers
+plot(nn, rep="best")
+
+pred <- compute(nn, tdata)$net.result
+error <- rmse(tdata[, "Price"], pred) #We use rmse() function from the
+Metrics package
+error
+
+nn <- neuralnet(data = vdata, Price ~., hidden=c(5, 5)) # 5 nodes, 2 layers
+plot(nn, rep="best")
+pred <- compute(nn, vdata)$net.result
+error <- rmse(vdata[, "Price"], pred) #We use rmse() function from the
+Metrics package
+error
+
+i. What happens to the RMS error for the training data as the number of layers and nodes increases?
+We can see from the above outputs that the root mean square error for the training data decreases as we
+increase the number of layers and nodes.
+ii. What happens to the RMS error for the validation data?
+We can see from the above outputs that the root mean square error for the validation data increases.
+iii. Comment on the appropriate number of layers and nodes for this application.
+From the above results, we can conclude that 2 layers and 5 nodes in each layer are appropriate for this
+application.
+
+---------------------------------------------------------------
+
+PRACTICAL 7
+Q.Forecasting Wal-Mart Stock:
+show plots, summary statistics, and output from fitting an
+AR(1) model to the series of Wal-Mart daily closing prices
+between February 2001 and February 2002. (Thanks to Chris
+Albright for suggesting the use of these data, which are
+publicly available, e.g., at http://finance.yahoo.com and are
+in the file WalMartStock.xls.) Use all the information to
+answer the following questions.
+library(readr)
+wallmart <- read_csv("MSC Data Science part 1 Manjiri 197/Dataset
+Dv/WMT.csv")
+I. Create a time plot of the differenced series.
+library(stats)
+closing_prices <- wallmart$Close
+diff_series <- diff(closing_prices)
+plot(diff_series, type = "l", xlab = "Time", ylab = "Differenced Closing
+Prices", main = "Time Plot of Differenced Series")
+II. Which of the following is/are relevant for testing whether this
+stock is a random walk?
+a. The autocorrelations of the close prices series
+acf(closing_prices, main = "Autocorrelation of Close Prices
+Series")
+
+Significant autocorrelations at higher lags may indicate nonrandom behavior.
+b. The AR(1) slope coefficient
+ar_model <- arima(closing_prices, order = c(1, 0, 0))
+summary(ar_model)
+
+From the summary output of the ARIMA model, examine the
+coefficient estimate for the AR(1) term. As it's close to 1, it
+suggests a random walk.
+
+c. The AR(1) constant coefficient
+ar_model <- arima(closing_prices, order = c(1, 0, 0))
+summary(ar_model)
+
+ANS : The AR(1) coefficient (Option a) is more relevant for testing
+whether the stock follows a random walk
+III. Does the AR model indicate that this is a random walk? Explain
+how you reached yourconclusion.
+If the AR(1) coefficient estimate is close to 1 and not significantly
+different from 1 (i.e., if its p-value is high), it suggests that the
+series behaves like a random walk.
+IV. What are the implications of finding that a time series is a
+random walk? Choose the correct statement(s) below.
+a. It is impossible to obtain useful forecasts of the series.
+b. The series is random.
+c. The changes in the series from one period to the other are
+random.
+ANS : In R, the correct statement regarding the implications of
+finding that a time series is a random walk is:
+
+c. The changes in the series from one period to the other are
+random.
+
+Explanation:
+While traditional forecasting methods may struggle to provide
+accurate predictions for a time series that follows a random
+walk, it doesn't mean that forecasting becomes impossible.
+Alternative approaches, such as random walk models or
+incorporating external information, can still yield valuable
+insights.
+
+
+---------------------------------------------------------------
+
+PRACTICAL 10
+Q. Souvenir Sales:
+The file SouvenirSales.xls contains monthly sales for
+a souvenir shop at a beach resort town in
+Queensland, Australia, between 1995 and 2001.
+[Source: R. J. Hyndman, Time Series Data Library,
+http://www.robjhyndman.com/TSDL; accessed on
+December 20, 2009.] Back in 2001, the store wanted
+to use the data to forecast sales for the next 12
+months (year 2002). They hired an analyst to
+generate forecasts. The analyst first partitioned the
+data into training and validation sets, with the
+validation set containing the last 12 months of data
+(year 2001). She then fit a regression model to sales,
+using the training set.
+
+library(forecast)
+library(readr)
+souvenir <- read.csv("Souvenir.csv", stringsAsFactors=FALSE)
+str(souvenir)
+
+A. Create a well-formatted time plot of the data. Why did the analyst
+choose a 12-month validation period?
+First and foremost, because she was asked to predict the next 12 months of sales. To do this
+she needs to account for a full period (one year) to account for any seasonality of the data. And
+having the validation period in-line (timewise) with the forecast period makes the forecasting
+more realistic/accurate.
+souvenir.ts <- ts(souvenir$Sales, start = c(1995, 1), frequency = 12)
+plot(souvenir.ts/1000, ylim = c(0,120), ylab = "Sales (in thousands)", xlab =
+"Time", main = "Souvenir Sales Over Time", bty = "l")
+
+nValid <- 12
+nTrain <- length(souvenir.ts) - nValid
+training.ts <- window(souvenir.ts/1000, start = c(1995, 1), end =
+c(1995, nTrain))
+validation.ts <- window(souvenir.ts/1000, start = c(1995, nTrain +
+1), end = c(1995, nTrain + nValid))
+souvenir.lm <- tslm(training.ts ~ trend + I(trend^2))
+souvenir.lm.pred <- forecast(souvenir.lm, h = nValid, level = 0)
+plot(souvenir.lm.pred, ylim = c(0,120), ylab = "Sales (in
+thousands)", xlab = "Time", main = "Souvenir Sales Over Time",
+bty = "l", flty = 2)
+
+lines(souvenir.lm$fitted, lwd = 2)
+lines(validation.ts)
+
+B. What is the naive forecast for the validation period? (assume
+that you must provide forecasts for 12 months ahead)
+training.ts.naive <- training.ts <- window(Souvenir.ts, start =
+c(1995, 1), end = c(1995,ntrain))
+validation.ts.naive <- window(Souvenir.ts,start=c(1995,ntrain +
+1),end = c(1995,ntrain + nvalid))
+nayv_forecast <- snaive(training.ts.naive,h= nvalid)
+nayv_forecast$mean
+
+navy_forecast2 <- snaive(training.ts,h=nvalid)
+plot(navy_forecast2)
+
+C. Compute the RMSE and MAPE for the naive forecasts.
+accuracy(nayv_forecast,validation.ts.naive)
+
+# Create a well-formatted time plot of the data
+time_plot <- ggplot(Souvenir, aes(x = Date, y = Sales)) +
+ geom_point() +
+ labs(title = "Monthly Sales for Souvenir Shop (1995-2001)",
+ x = "Date",
+ y = "Sales") +
+ theme_minimal()
+time_plot
+
+# Create a time plot with log scale on the y-axis
+log_y_plot <- ggplot(Souvenir, aes(x = Date, y = Sales)) +
+ geom_point() +
+ scale_y_log10() + # Apply log scale to y-axis
+ labs(title = "Monthly Sales for Souvenir Shop (1995-2001) - Log Scale on yaxis",
+ x = "Date",
+ y = "Sales (log scale)") +
+ theme_minimal()
+log_y_plot
+
+If the regular scale time plot (time_plot) shows a relatively straight line or a
+consistent trend, it may indicate a linear trend in the original data.
+If the log scale time plot (log_y_plot) shows a relatively straight line or a
+consistent pattern, it suggests exponential growth or decay in the original
+data.
+By comparing the shapes and patterns in both plots, we can infer whether
+the trend in the data is linear or exponential in nature.
+Therefore, by comparing these two plots visually, we can make inferences
+about the type of trend present in the sales data.
+
