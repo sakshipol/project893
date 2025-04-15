@@ -1,0 +1,924 @@
+Practical 1
+Aim: The dataset ToyotaCorolla.xls contains data on used cars on sale during the late summer of 2004 in The Netherlands. It has 1436 records containing details on 38 attributes, including
+Price, Age, Kilometers, HP, and other specifications
+Code & Output:
+i.Explore the data using the data visualization (matrix plot) capabilities of XLMiner. Which of the pairs among the variables seem to be correlated?
+library(tidyverse)
+library(caret)
+library(ggplot2)
+library(dplyr)
+library(GGally)
+library(rpart)
+library(corrplot)
+library(gplots)
+library(ggpubr)
+install.packages(“ggpubr”)
+install.packages(“dummies”)
+
+i. Explore the data using the data visualization (matrix plot) capabilities of XLMiner. Which of the pairs among the variables
+seem to be correlated?
+toy.df<-read.csv("ToyotaCorolla.csv")
+toy_cor <- subset(toy.df, select = -c(Model,Fuel_Type,Color))
+ggcorr(toy_cor, hjust = 1)
+
+toy.plot <- ggplot(toy.df)+geom_point(aes(toy.df$Mfg_Year, toy.df$Price))
+toy.plot2 <- ggplot(toy.df)+geom_point(aes(toy.df$Mfg_Year, toy.df$Age_08_04))
+toy.plot3 <- ggplot(toy.df)+geom_col(aes(toy.df$Mfg_Year, toy.df$Boardcomputer))
+toy.plot4 <- ggplot(toy.df)+geom_point(aes(toy.df$Id, toy.df$Age_08_04))
+ggarrange(toy.plot, toy.plot2, toy.plot3, toy.plot4, ncol = 2, nrow = 2)
+
+Ans: The structure of the data is viewed str(toy_cor) and the three variables that were not numerical were Fuel_Type, Model, and Color. The highly correlating attributes (highlighted
+in dark red or dark blue) were Price & Year, Age & Year,Boardcomputer & Year, and ID & Age. These values were plotted to visualize the suggested correlation.
+
+ii.We plan to analyze the data using various data mining techniques described in future chapters. Prepare the data for use as follows:
+a. The dataset has two categorical attributes, Fuel Type and Metallic.
+b. Describe how you would convert these to binary variables.
+c. Confirm this using XLMiner’s utility to transform categorical data into dummies.
+set.seed(1)
+library(dummies)
+toy.df$Model <- as.character(toy.df$Model)
+toy.df.dum <- dummy.data.frame(toy.df, sep = ".", dummy.class = "factor")
+toy.df.dum <- toy.df.dum[, -c(10,13)] # drop one of the dummy variables from Color and Fuel_Type.
+head(t(t(names(toy.df.dum))),22)
+Ans: The Factor variables Fuel_Type and Color were removed from the database as a matrix and recombined back into a dataframe, as per the textbook guidance. Another way to do this is to remove Model from the database and apply the dummy.data.frame and removing the extra variable. If dummy.data.frame is used on the raw data, it will also convert
+Model into multiple columns.
+
+library("ggplot2")
+library('ggpubr')
+rm(list=ls())
+ToyotaCorolla=read.csv("ToyotaCorolla.csv")
+drops = c("Id","Model","Fuel_Type","Color","Cylinders")
+TCData = ToyotaCorolla[,!colnames(ToyotaCorolla) %in%
+drops]
+cormatrix = suppressWarnings(cor(TCData))
+View(cormatrix)
+
+heatmap(cormatrix, Rowv = NA, Colv = NA)
+
+TCData$Boardcomputer = as.factor(TCData$Boardcomputer)
+TCData$Powered_Windows =
+as.factor(TCData$Powered_Windows)
+TCData$Central_Lock = as.factor(TCData$Central_Lock)
+TCData$Radio = as.factor(TCData$Radio)
+TCData$Radio_cassette = as.factor(TCData$Radio_cassette)
+#price/age/year
+prcageyr=ggplot(ToyotaCorolla,aes(ToyotaCorolla$Age_08_04,
+Price,colour=Mfg_Year))+ geom_point()
+#mfg_year/bpardcomp
+mfgbcmp=ggplot(ToyotaCorolla,aes(x=TCData$Mfg_Year,fill=B
+oardcomputer==1))+ geom_histogram(binwidth=1,position='fill')
+#powerwindow/centrallock
+powcent=ggplot(ToyotaCorolla,aes(x=TCData$Powered_Windo
+ws,y=TCData$Central_Lock))+ geom_col()
+#radio/cassette
+
+radcas=ggplot(ToyotaCorolla,aes(x=TCData$Radio,y=TCData$
+Radio_cassette))+geom_col()
+ggarrange(prcageyr,mfgbcmp,powcent,radcas,nrow=2,ncol=2)
+
+ii. We plan to analyze the data using various data mining
+techniques described in future chapters. Prepare the data for
+use as follows: a. The dataset has two categorical attributes,
+Fuel Type and Metallic. b. Describe how you would convert
+these to binary variables. c. Confirm this using R function to
+transform categorical data into dummies.
+fuel_type_dummy <- model.matrix(~Fuel_Type - 1 , data =
+toyotaCorolla)
+data_with_dummies <-
+cbind(toyotaCorolla,fuel_type_dummy,metallic_dummy)
+data_with_dummies <-
+data_with_dummies[, !(colnames(data_with_dummies) %in%
+c("Fuel_Type"))]
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Practical 2
+Aim:Shipments of Household Appliances:
+The file ApplianceShipments.csv contains the series of
+quarterly shipments (in millions of dollars) of US household
+appliances between 1985 and 1989.
+Code & Output
+A. Create a well-formatted time plot of the data using Excel.
+library(tidyverse)
+library(ggplot2)
+# load dataset
+apps <- read.csv("ApplianceShipments.csv")
+# separate Quarter variable into 2
+apps_yq <- separate(apps, Quarter, c("Quarter", "Year"))
+# create variable with numerical quarter
+apps_yq$Quarter_Num <- sub('.', '', apps_yq$Quarter)
+# change order of variables
+apps_yq <- select(apps_yq, Quarter_Num, Year, Quarter,
+Shipments)
+# create new variable with year and quarter
+apps_yq <- unite(apps_yq, "Year_Quarter",
+Year:Quarter_Num, sep = ".", remove = FALSE)
+# change to factor
+apps_yq$Quarter <- as.factor(apps_yq$Quarter)
+# change to numeric
+apps_yq <- mutate_if(apps_yq, is.character, as.numeric)
+# plot data
+ggplot(apps_yq,aes(Year_Quarter,Shipments)) + geom_line() +
+geom_label(aes(label=Quarter,color = Quarter),show.legend =
+FALSE) +
+ theme_light() + labs(title = "Appliance Shipments from 1985 to
+1989",x = "Year",y = "Shipments")
+
+B. Does there appear to be a quarterly pattern? For a closer
+view of the patterns, zoom in to the range of 3500 - 5000 on
+the y-axis.
+ggplot(apps_yq,aes(Year_Quarter,Shipments)) + geom_line()
++ scale_y_continuous(limits = c(3500,5000)) +
+ geom_label(aes(label=Quarter,color =
+Quarter),show.legend = FALSE) +
+ theme_light() + labs(title = "Appliance Shipments from 1985
+to 1989",x = "Year",y = "Shipments")
+
+Yes, there appears quarterly pattern in the above time series.
+The time series plot shows a repeating pattern each year
+(increasing shipment in Q2 and Q3 and decreasing shipments
+in Q1 and Q4).
+C. Create one chart with four separate lines, one line for each
+of Q1, Q2, Q3,and Q4. In R, this can be achieved by
+generating a data.frame for each quarter Q1, Q2, Q3, Q4,
+and then plotting them as separate series on the line graph.
+Zoom in to the range of 3500–5000 on the y-axis. Does there
+appear to be a difference between quarters?
+label_text <- filter(apps_yq,Year == 1989)
+ggplot(apps_yq,aes(Year,Shipments,color = Quarter)) +
+geom_line() +
+ geom_text_repel(data = label_text,aes(label=Quarter),na.rm =
+TRUE,nudge_x = 1,show.legend = FALSE) + theme_light() +
+labs(title = "Appliance Shipments from 1985 to 1989",x =
+"Year",y = "Shipments")
+
+D.Using R, create a line graph of the series at a yearly
+aggregated level (i.e., the total shipments in each year).
+apps_yq <- apps_yq %>% group_by(Year) %>%
+ mutate(yearly_ship = sum(Shipments)) %>% ungroup()
+ggplot(apps_yq,aes(Year,yearly_ships)) + geom_line() +
+theme_light() + labs(title = "Appliance Shipments from 1985
+to 1989",x = "Year",y = "Shipments")
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Practical 3
+Aim:Categorical variables in Toyotta Corolla.
+Code:
+#Pract3
+# Load required libraries
+library(readxl)
+# Load the dataset
+ToyotaCorolla <- read.csv("ToyotaCorolla.csv")
+View(ToyotaCorolla)
+# i. Identify the categorical variables
+# Assuming categorical variables are those with character or
+factor data type
+ToyotaCorolla$Fuel_Type <- factor(ToyotaCorolla$Fuel_Type)
+unique(ToyotaCorolla$Fuel_Type)
+categorical_vars <- sapply(ToyotaCorolla, is.factor)
+categorical_vars
+# ii. Explain the relationship between a categorical variable and
+the series of binary dummy variables derived from it
+##A categorical variable represents different categories or
+groups, such as colors, types of cars, or levels of education.
+##Dummy variables are binary variables created to represent
+the categories of a categorical variable.
+##Each dummy variable corresponds to one category of the
+categorical variable.
+# Dummy variables are binary variables created to represent
+the categories of a categorical variable.
+# Each dummy variable corresponds to one category of the
+categorical variable, with a value of 1 indicating presence and 0 indicating absence.
+# iii. How many dummy binary variables are required to capture
+the information in a categorical variable with N categories?
+# For a categorical variable with N categories, N-1 dummy
+variables are needed. This is to avoid perfect multicollinearity.
+# iv. Convert categorical variables into dummy binaries
+ToyotaCorolla$Fuel_Type <- factor(ToyotaCorolla$Fuel_Type)
+# Create dummy variables for Fuel_Type
+dummy_vars <- model.matrix(~ Fuel_Type - 1, data =
+ToyotaCorolla)
+# Attach the dummy variables to the dataset
+ToyotaCorolla <- cbind(ToyotaCorolla, dummy_vars)
+# Optionally, you can remove the original Fuel_Type column if
+it's no longer needed
+ToyotaCorolla <- ToyotaCorolla[, !(names(ToyotaCorolla) %in%
+"Fuel_Type")]
+View(ToyotaCorolla)
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Practical 4
+Aim:Predicting Housing Median prices
+Code & Output:
+Problem
+The file BostonHousing.csv contains information on over 500
+census tracts in Boston, where for each tract multiple variables
+are recorded. The last column (CAT.MEDV) was derived from
+MEDV, such that it obtains the value 1 if MEDV > 30 and 0
+otherwise. Consider the goal of predicting the median value
+(MEDV) of a tract, given the information in the first 12 columns.
+housing.df <- read.csv("BostonHousing.csv")
+set.seed(123)
+train.index <- sample(row.names(housing.df),
+0.6*dim(housing.df)[1])
+valid.index <- setdiff(row.names(housing.df), train.index)
+train.df <- housing.df[train.index, -14]
+valid.df <- housing.df[valid.index, -14]
+Part A
+Perform a k-NN prediction with all 12 predictors (ignore the
+CAT.MEDV column), trying values of k from 1 to 5. Make sure
+to normalize the data, and choose function knn() from package
+class rather than package FNN. To make sure R is using the
+class package (when both packages are loaded),
+use class::knn(). What is the best k? What does it mean?
+# initialize normalized training, validation data, complete data
+frames to originals
+train.norm.df <- train.df
+valid.norm.df <- valid.df
+housing.norm.df <-housing.df
+# use preProcess() from the caret package to normalize
+Income and Lot_Size.
+library(caret)
+norm.values <- preProcess(train.df, method=c("center",
+"scale"))
+train.norm.df <- as.data.frame(predict(norm.values, train.df))
+valid.norm.df <- as.data.frame(predict(norm.values, valid.df))
+housing.norm.df <- as.data.frame(predict(norm.values,
+housing.df))
+#initialize a data frame with two columns: k, and accuracy
+accuracy.df <- data.frame(k = seq(1, 5, 1), RMSE = rep(0, 5))
+# compute knn for different k on validation.
+for(i in 1:5){
+ knn.pred<-class::knn(train = train.norm.df[,-13],
+ test = valid.norm.df[,-13],
+ cl = train.df[,13], k = i)
+ accuracy.df[i,2]<-
+RMSE(as.numeric(as.character(knn.pred)),valid.df[,13])
+}
+accuracy.df
+
+Ans: k=1 is the best fit since it has the lowest RMSE (meaning
+it has the highest accuracy rate of the values tried) However,
+we do not want to use k=1 because of overfit so we will use the
+next lowest RMSE (k=2). This means that, for a given record,
+MEDV is predicted by averaging the MEDVs for the 2 closest
+records, proximity being measured by the distance between the
+vectors of predictor values.
+Part B
+Predict the MEDV for a tract with the following information,
+using the best k:
+new.norm.df <- predict(new.norm.values, newdata = new.df)
+#predict the MEDV
+new.knn.pred <- class::knn(train = train.norm.df[,-13],
+ test = new.norm.df,
+ cl = train.df$MEDV, k = 2)
+new.knn.pred
+Part C
+If we used the above k-NN algorithm to score the training data,
+what would be the error of the training set?
+new.accuracy.df<-
+RMSE(as.numeric(as.character(new.knn.pred)),valid.df[,13])
+new.accuracy.df
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Practical 5
+The file accidentsFull.csv contains information on over 42,183 actual automobile accidents in 2001 in the United States that
+involved one of three levels of injury: NO INJURY, INJURY, or
+FATALITY. For each accident, additional information is
+recorded, such as day of week, weather conditions, and road
+type. A firm might be interested in developing a system for
+quickly classifying the severity of an accident based on initial
+reports and associated data in the system (some of which rely
+on GPS-assisted reporting).
+Our goal here is to predict whether an accident just reported
+will involve an injury (MAX_SEV_IR = 1 or 2) or will not
+(MAX_SEV_IR = 0). For this purpose, create a dummy variable
+called INJURY that takes the value “yes” if MAX_SEV_IR = 1 or
+2, and otherwise “no.”
+Data
+Load the accidentsFull.csv and install/load any required packages. Create and insert a dummy variable called “INJURY” in the data.
+Code & Output:
+accidents.df <- read.csv("accidentsFull.csv")
+accidents.df$INJURY <- ifelse(accidents.df$MAX_SEV_IR>0,
+"yes", "no")
+head(accidents.df)
+
+Part A
+Using the information in this dataset, if an accident has just been reported and no further information is available, what should the prediction be? (INJURY = Yes or No?) Why?
+#create a table based on INJURY
+inj.tbl <- table(accidents.df$INJURY)
+show(inj.tbl)
+#caluculate probability of injury
+inj.prob = scales::percent
+(inj.tbl["yes"]/(inj.tbl["yes"]+inj.tbl["no"]),0.01)
+inj.prob
+
+Ans: Since ~51% of the accidents in our data set resulted
+in an accident, we should predict that an accident will
+result in injury because it is slightly more likely.
+
+Part B
+Select the first 12 records in the dataset and look only at the response (INJURY) and the two predictors WEATHER_R and TRAF_CON_R.
+#convert your variables to categorical type
+for (i in c(1:dim(accidents.df)[2])){
+ accidents.df[,i] <- as.factor(accidents.df[,i])
+}
+#create a new subset with only the required records
+new.df <- accidents.df[1:12,c("INJURY","WEATHER_R","TRAF_CON_R")]
+new.df
+Part B.i
+Create a pivot table that examines INJURY as a function of the two predictors for these 12 records. Use all three variables in the pivot table as rows/columns.
+#Load library for pivot table
+library(rpivotTable)
+rpivotTable::rpivotTable(new.df)
+B.ii
+Compute the exact Bayes conditional probabilities of an injury (INJURY = Yes) given the six possible combinations of the predictors.
+#To find P(Injury=yes|WEATHER_R = 1, TRAF_CON_R =0):
+numerator1 <- 2/3 * 3/12
+denominator1 <- 3/12
+prob1 <- numerator1/denominator1
+#To find P(Injury=yes|WEATHER_R = 1, TRAF_CON_R =1):
+numerator2 <- 0 * 3/12
+denominator2 <- 1/12
+prob2 <- numerator2/denominator2
+prob2
+#To find P(Injury=yes| WEATHER_R = 1, TRAF_CON_R =2):
+numerator3 <- 0 * 3/12
+denominator3 <- 1/12
+prob3 <- numerator3/denominator3
+prob3
+#To find P(Injury=yes| WEATHER_R = 2, TRAF_CON_R =0):
+numerator4 <- 1/3 * 3/12
+denominator4 <- 6/12
+prob4 <- numerator4/denominator4
+prob4
+#To find P(Injury=yes| WEATHER_R = 2, TRAF_CON_R =1):
+numerator5 <- 0 * 3/12
+denominator5 <- 1/12
+prob5 <- numerator5/denominator5
+prob5
+#To find P(Injury=yes| WEATHER_R = 2, TRAF_CON_R =2):
+numerator6 <- 0 * 3/12
+denominator6 <- 0
+prob6 <- numerator6/denominator6
+prob6
+a<-c(1,2,3,4,5,6)
+b<-c(prob1,prob2,prob3,prob4,prob5,prob6)
+prob.df<-data.frame(a,b)
+names(prob.df)<-c('Option #','Probability')
+prob.df %>% mutate_if(is.numeric, round, 3)
+NOTE: In the above 12 observations there is no observation with (Injury=yes, WEATHER_R = 2, TRAF_CON_R =2). The conditional probability here is undefined, since the denominator
+is zero.
+B.iii
+Classify the 12 accidents using these probabilities and a cutoffof 0.5.
+#add probability results to you subset
+new.df.prob<-new.df
+head(new.df.prob)
+prob.inj <- c(0.667, 0.167, 0, 0, 0.667, 0.167, 0.167, 0.667,
+0.167, 0.167,
+ 0.167, 0)
+new.df.prob$PROB_INJURY<-prob.inj
+#add a column for injury prediction based on a cutoff of 0.5 
+new.df.prob$PREDICT_PROB<-
+ifelse(new.df.prob$PROB_INJURY>.5,"yes","no")
+new.df.prob
+B.iv
+Compute manually the naive Bayes conditional probability of an injury given WEATHER_R = 1 and TRAF_CON_R = 1.
+#To find P(Injury=yes| WEATHER_R = 1, TRAF_CON_R =1):
+# Probability of injury involved in accidents
+# = (proportion of WEATHER_R =1 when Injury = yes)
+# *(proportion of TRAF_CON_R =1 when Injury = yes)
+# *(propotion of Injury = yes in all cases)
+man.prob <- 2/3 * 0/3 * 3/12
+man.prob
+
+B.v
+Run a naive Bayes classifier on the 12 records and two predictors using R. Check the model output to obtain probabilities and classifications for all 12 records. Compare this
+to the exact Bayes classification. Are the resulting classifications equivalent? Is the ranking (= ordering) of observations equivalent?
+#load packages and run the naive Bayes classifier
+library(e1071)
+library(klaR)
+library(caret)
+library(ggplot2)
+library(lattice)
+## Loading required package: lattice
+## Loading required package: ggplot2
+nb<-naiveBayes(INJURY ~ ., data = new.df)
+predict(nb, newdata = new.df,type = "raw")
+x=new.df[,-3]
+y=new.df$INJURY
+model <- train(x,y,'nb', trControl = trainControl(method =
+'cv',number=10))
+model
+#Now that we have generated a classification model, we use it for prediction
+model.pred<-predict(model$finalModel,x)
+model.pred
+##build a confusion matrix so that we can visualize the classification errors
+table(model.pred$class,y)
+#compare against the manually calculated results 
+new.df.prob$PREDICT_PROB_NB<-model.pred$class
+new.df.prob
+NOTE: The errors that appear when running the naive Bayes on this sample set are nothing to really worry about, they just mean that these parameter do very poorly when classified.
+As you can see the trained data performed better than our manual calculations. However, since we trained on the same data we are testing this is to be expected (and is not a best
+practice, you never want to use the same data you trained on for testing).
+Part C
+Let us now return to the entire dataset. Partition the data into training (60%) and validation (40%).
+#Partc
+set.seed(22)
+train.index <- sample(c(1:dim(accidents.df)[1]),
+dim(accidents.df)[1]*0.6)
+train.df <- accidents.df[train.index,]
+valid.df <- accidents.df[-train.index,]
+C.i
+Assuming that no information or initial reports about the accident itself are available at the time of prediction (only location characteristics, weather conditions, etc.), which
+predictors can we include in the analysis? (Use the Data_Codes sheet.)
+We can use the predictors that describe the calendar time or road 
+conditions: HOUR_I_R ALIGN_I WRK_ZONE WKDY_I_R INT
+_HWY LGTCON_I_R PROFIL_I_R SPD_LIM SUR_CON TRAF
+_CON_R TRAF_WAY WEATHER_R
+
+C.ii
+Run a naive Bayes classifier on the complete training set with the relevant predictors (and INJURY as the response). Note that all predictors are categorical. Show the confusion matrix.
+#define which variable you will be using
+vars <- c("INJURY", "HOUR_I_R", "ALIGN_I" ,"WRK_ZONE",
+"WKDY_I_R",
+ "INT_HWY", "LGTCON_I_R", "PROFIL_I_R",
+"SPD_LIM", "SUR_COND",
+ "TRAF_CON_R", "TRAF_WAY", "WEATHER_R")
+nbTotal <- naiveBayes(INJURY ~ ., data = train.df[,vars])
+#generate the confusion matrix using the train.df, the prediction
+and
+#the classes
+confusionMatrix(train.df$INJURY, predict(nbTotal, train.df[,
+vars]), positive = "yes")
+
+ner=1-.5384
+nerp=scales::percent(ner,0.01)
+nerp
+
+C.iii
+What is the overall error for the validation set?
+confusionMatrix(valid.df$INJURY, predict(nbTotal, valid.df[,
+vars]),positive = "yes")
+
+ver=1-.5354
+verp=scales::percent(ver,0.01)
+paste("Overall Error: ",verp)
+
+C.iv
+What is the percent improvement relative to the naive rule
+(using the validation set)?
+imp=ver-ner
+paste("The percent improvement is ",scales::percent(imp,0.01))
+
+C.v
+Examine the conditional probabilities output. Why do we get a
+probability of zero for P(INJURY = No j SPD_LIM = 5)?
+options(digits = 2)
+nbTotal
+
+We do not get true probability of zero for no injury in
+accidents under speed limit of 5 because we can never be
+entirely sure something will not happen. However,
+considering the highly unlikely fact of sustaining an injury
+while in a car accident at such a low speed, it makes sense
+that the probability is quite close to 0.
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Practical 6
+Neural Nets
+Car Sales. Consider the data on used cars (ToyotaCorolla.csv)
+with 1436 records and details on 38 attributes, including Price,
+Age, KM, HP, and other specifications. The goal is to predict
+the price of a used Toyota Corolla based on its specifications.
+• Use predictors Age_08_04, KM, Fuel_Type, HP, Automatic,
+Doors, Quarterly_Tax, Mfr_Guarantee, Guarantee_Period,
+Airco, Automatic_airco, CD_Player, Powered_Windows,
+Sport_Model, and Tow_Bar.
+• Remember to first scale the numerical predictor and outcome
+variables to a 0–1 scale (use function preprocess() with method
+= “range”—see Chapter 7) and convert categorical predictors to
+dummies.
+
+#Practical 6 
+Toyotacorolla <- read.csv("ToyotaCorolla.csv") 
+Toyotacorolla1 <- Toyotacorolla[,c( 
+"Price", "Age_08_04", "KM", "Fuel_Type", "HP", "Automatic",  
+"Doors", "Quarterly_Tax","Mfr_Guarantee", 
+"Guarantee_Period", 
+"Airco", "Automatic_airco", "CD_Player", "Powered_Windows",  
+"Sport_Model", "Tow_Bar")] 
+#Converting Categorical Predictor to dummy variable using  
+#library fast dummies 
+library(fastDummies) 
+Toyotacorolla2 <- Toyotacorolla1 %>%  
+dummy_cols(select_columns=c('Fuel_Type')) 
+#Removing original Fuel_Type and one of the dummy variables  
+from the previous data frame 
+Toyotacorolla3 <- Toyotacorolla2  %>%  
+select(c(-Fuel_Type, -Fuel_Type_CNG)) 
+#Removing NA values 
+Toyotacorolla3[is.na(Toyotacorolla3)]<-0 
+library(caret) 
+#Let's preprocess the data by scaling the numerical variables  
+to a 0-1 scale using method="range" 
+data_normalize <- preProcess(Toyotacorolla3, 
+method=c("range"), na.remove=TRUE) 
+#The processed data is sent to predict() function to get the  
+final normalized data using the min-max scaling method 
+data_normalize2 <- 
+predict(data_normalize,as.data.frame(Toyotacorolla3)) 
+
+a. Fit a neural network model to the data. Use a single 
+hidden layer with 2 nodes. 
+Record the RMS error for the training data and the validation 
+data. Repeat the process, changing the number of hidden 
+layers and nodes to {single layer with 5 nodes}, {two layers, 5 
+nodes in each layer}. 
+#Let's split the data into training (80%) and validation (20%) 
+ind <- sample(2, nrow(data_normalize2), replace=TRUE,  
+prob=c(0.8, 0.2)) 
+tdata <- data_normalize2[ind==1, ] #ind==1 means the first 
+sample 
+vdata<- data_normalize2[ind==2, ] #ind==2 means the second 
+sample
+ 
+A. Fitting a neural network model to the data using a single 
+hidden layer with 2 nodes. 
+#Plotting the neural network for training data 
+library(neuralnet) 
+nn <- neuralnet(data = tdata, Price ~., hidden=2) 
+plot(nn, rep="best") 
+#Calculating RMSE on training data 
+pred <- compute(nn, tdata)$net.result 
+library(Metrics) 
+error <- rmse(tdata[, "Price"], pred)  
+#We use rmse() function from the Metrics package 
+Error 
+#Plotting the neural network for validation data 
+nn <- neuralnet(data = vdata, Price ~., hidden=2) 
+plot(nn, rep="best") 
+#Calculating RMSE on the validation data 
+pred <- compute(nn, vdata)$net.result 
+error <- rmse(vdata[, "Price"], pred) #We use rmse() function 
+from the Metrics package 
+error
+
+ 
+B. Fitting a neural network model to the data using single layer 
+with 5 nodes 
+#Plotting the neural network for training data 
+nn <- neuralnet(data = tdata, Price ~., hidden=c(5)) #5 nodes, 1 
+layers 
+plot(nn, rep="best") 
+#Calculating RMSE on training data 
+pred <- compute(nn, tdata)$net.result 
+error <- rmse(tdata[, "Price"], pred) #We use rmse() function 
+from the Metrics package 
+error 
+#Plotting the neural network for validation data 
+nn <- neuralnet(data = vdata, Price ~., hidden=c(5)) # 5 nodes, 
+1 layers 
+plot(nn,rep="best") 
+#Calculating RMSE on validation data 
+pred <- compute(nn, vdata)$net.result 
+error <- rmse(vdata[, "Price"], pred) #We use rmse() function 
+from the Metrics package 
+error
+
+ 
+C. Fitting a neural network model to the data using two layers 
+and 5 nodes in each layer 
+#Plotting the neural network for training data 
+nn <- neuralnet(data = tdata, Price ~., hidden=c(5,5)) #5 nodes, 
+2 layers 
+plot(nn, rep="best") 
+#Calculating RMSE on training data 
+pred <- compute(nn, tdata)$net.result 
+error <- rmse(tdata[, "Price"], pred) #We use rmse() function 
+from the Metrics package 
+error 
+#Plotting the neural network for validation data 
+nn <- neuralnet(data = vdata, Price ~., hidden=c(5, 5)) # 5 
+nodes, 2 layers 
+plot(nn, rep="best") 
+#Calculating RMSE on training data 
+pred <- compute(nn, vdata)$net.result 
+error <- rmse(vdata[, "Price"], pred) #We use rmse() function 
+from the Metrics package 
+error
+ 
+i. 
+What happens to the RMS error for the training data as 
+the number of layers and nodes increases? 
+We can see from the above outputs that the root mean square 
+error for the training data decreases as we increase the number 
+of layers and nodes. 
+
+ii. 
+What happens to the RMS error for the validation data? 
+We can see from the above outputs that the root mean square 
+error for the validation data increases. 
+
+iii. 
+Comment on the appropriate number of layers and nodes 
+for this application. 
+From the above results, we can conclude that 2 layers and 5 
+nodes in each layer are appropriate for this application. 
+11.4 Direct Mailing to Airline Customers. East-West Airlines has 
+entered into a partnership with the wireless phone company 
+Telcon to sell the latter’s service via direct mail. The file 
+EastWestAirlinesNN.csv contains a subset of a data sample of 
+who has already received a test offer. About 13% accepted. 
+
+EastWestAirlinesNN <- read.csv("EastWestAirlines.csv") 
+EastWestAirlinesNN = as.data.frame(EastWestAirlinesNN) 
+#Removing NA values. If we don't do  
+EastWestAirlinesNN[is.na(EastWestAirlinesNN)]<-0 
+
+You are asked to develop a model to classify East–West 
+customers as to whether they purchase a wireless phone 
+service contract (outcome variable Phone_Sale). This model 
+will be used to classify additional customers. 
+
+a. Run a neural net model on these data, using a single 
+hidden layer with 5 nodes. Remember to first convert 
+categorical variables into dummies and scale numerical 
+predictor variables to a 0–1 (use function preprocess() 
+with method = “range”—see Chapter 7). Generate a 
+decile-wise lift chart for the training and validation sets. 
+Interpret the meaning (in business terms) of the leftmost 
+bar of the validation decile- wise lift chart. 
+#Let's split the data into training (75%) and validation set 
+
+#we use library(caTools) for data partitioning. 
+set.seed(123) 
+n=nrow(EastWestAirlinesNN)
+------------------------------------------------------------------------------------------
+practical 7 
+
+Aim: 
+Code & Output: 
+While working on the assignment; 
+• Use your judgement 
+• State your assumptions (what do you understand) 
+• Solve the problem 
+# Import required packages for this chapter 
+from pathlib import Path 
+import pandas as pd 
+import numpy as np 
+from pandas.plotting import parallel_coordinates 
+from sklearn import preprocessing 
+from sklearn.cluster import KMeans 
+from sklearn.metrics import pairwise 
+from scipy.cluster.hierarchy import linkage, dendrogram, 
+fcluster 
+import warnings 
+warnings.filterwarnings('ignore') 
+import matplotlib.pylab as plt 
+%matplotlib inline 
+
+Problem - University Rankings 
+The dataset on American College and University Rankings 
+contains information on 1302 American colleges and 
+universities offering an undergraduate program. For each 
+university, there are 17 measurements, including continuous 
+measurements (such as tuition and graduation rate) and 
+categorical measurements (such as location by state and 
+whether it is a private or public school). 
+Note that many records are missing some measurements. 
+Our first goal is to estimate these missing values from 
+"similar" records. This will be done by clustering the 
+complete records and then finding the closest cluster for 
+each of the partial records. The missing values will be 
+imputed from the information in that cluster. 
+Remove all records with missing measurements from the 
+dataset 
+# Load data
+ 
+data = pd.read_csv('Universities.csv') 
+shape = data.shape 
+print("Before:",shape) 
+data=data.dropna() 
+print("After:",data.shape) 
+data.head() 
+Before: (1302, 20) 
+After: (471, 20) 
+# Reduce to continuous measurements and normalize data 
+data.drop("State", axis=1, inplace=True) 
+data.drop("Public (1)/ Private (2)",axis=1, inplace=True) 
+data.set_index('College Name', inplace=True) 
+data_norm = (data - data.mean())/data.std() 
+data_norm.head() 
+Z = linkage(data_norm, method='complete',metric='euclidean') 
+fig = plt.figure(figsize=(15, 10)) 
+fig.subplots_adjust(bottom=0.23) 
+plt.title('Hierarchical Clustering Dendrogram (Complete 
+linkage)') 
+plt.xlabel('Collage Name') 
+dendrogram(Z, labels=data_norm.index, color_threshold=2) 
+plt.axhline(y=20, color='black', linewidth=0.5, 
+linestyle='dashed') 
+plt.show() 
+
+---------------------------------------------------------------------------------
+practical 8 
+
+Aim:Forecasting  
+Code & Output: 
+library(readr) 
+install.packages("forecast") 
+library(forecast) 
+wallmart <- read_csv("WMT.csv") 
+View(wallmart) 
+#dataset:
+ 
+#I. 
+Create a time plot of the differenced series. 
+library(stats) 
+closing_prices <- wallmart$Close 
+diff_series <- diff(closing_prices) 
+plot(diff_series, type = "l", xlab = "Time", ylab = "Differenced 
+Closing Prices",  
+main = "Time Plot of Differenced Series") 
+
+#II. Which of the following is/are relevant for testing whether 
+this stock is a random walk?  
+
+#a. The autocorrelations of the close prices series  
+acf(closing_prices, main = "Autocorrelation of Close Prices 
+Series") 
+#Significant autocorrelations at higher lags may indicate non
+random behavior. 
+
+#b. The AR(1) slope coefficient  
+closing_prices <- arima.sim(n=100, list(ar=0.7)) 
+ar_model <- arima(closing_prices, order = c(1, 0, 0)) 
+summary(ar_model) 
+ar_model$coef[1] 
+
+#C The AR(1) constant coefficient 
+ar_model <- arima(closing_prices, order = c(1, 0, 0)) 
+summary(ar_model) 
+ar_model$coef[2] 
+
+---------------------------------------------------------------------------------
+
+Practical 9 
+Aim:Time plot in SouvenirSales.xlsx 
+
+Code & Output: 
+The file SouvenirSales.xls contains monthly sales for a 
+souvenir shop at a beach resort town in Queensland, Australia, 
+between 1995 and 2001. 
+Back in 2001, the store wanted to use the data to forecast sales 
+for the next 12 months (year 2002). They hired an analyst to 
+generate forecasts. The analyst first partitioned the data into 
+training and validation periods, with the validation period 
+containing the last 12 months of data (year 2001). She then fit a 
+forecasting model to sales, using the training period. 
+Partition the data into the training and validation periods as 
+explained above. 
+
+A. Why was the data partitioned? 
+Partitioning the data allows the analyst to test the model 
+they have for accuracy. They can use a training set and 
+then test to it to their validation set. Once that has been 
+done, the analyst can look a number of error measures,  
+residuals, and comparison to see how accuate her model 
+may be at predicting future sales. 
+
+B. Why did the analyst choose a 12-month validation period? 
+First and foremost, because she was asked to predict the 
+next 12 months of sales. To do this she needs to account 
+for a full period (one year) to account for any seasonality 
+of the data. And having the validation period in-line 
+(timewise) with the forecast period makes the forecasting 
+more realistic/accurate. 
+library(forecast) 
+library(readr) 
+library(readxl) 
+#read and review 
+souvenir <- read.csv("SouvenirSales.csv", 
+stringsAsFactors=FALSE) 
+head(souvenir) 
+str(souvenir) 
+#time series 
+souvenir.ts <- ts(souvenir$Sales, start = c(1995, 1), frequency = 
+12) 
+#Plot data set 
+plot(souvenir.ts/1000, ylim = c(0,120), ylab = "Sales (in 
+thousands)", xlab = "Time", main = "Souvenir Sales Over Time", 
+bty = "l") 
+#Plot data set 
+plot(souvenir.ts/1000, ylim = c(0,120), ylab = "Sales (in 
+thousands)", xlab = "Time", main = "Souvenir Sales Over Time", 
+bty = "l")  
+#Partition data 
+nValid <- 12 
+nTrain <- length(souvenir.ts) - nValid 
+training.ts <- window(souvenir.ts/1000, start = c(1995, 1), end = 
+c(1995, nTrain)) 
+validation.ts <- window(souvenir.ts/1000, start = c(1995, nTrain 
++ 1), end = c(1995, nTrain + nValid)) 
+install.packages("forecast")  # Install the package if you haven't 
+already 
+library(forecast)  
+           # Load the forecast package 
+souvenir.lm <- tslm(training.ts ~ trend + I(trend^2)) 
+souvenir.lm.pred <- forecast(souvenir.lm, h = nValid, level = 0) 
+plot(souvenir.lm.pred, ylim = c(0,120), ylab = "Sales (in 
+thousands)", xlab = "Time", main = "Souvenir Sales Over Time", 
+bty = "l", flty = 2) 
+lines(souvenir.lm$fitted, lwd = 2)  
+lines(validation.ts) 
+
+C. What is the naive forecast for the validation period? 
+(assume that you must provide forecasts for 12 months 
+ahead) 
+See below - both a table with the values, followed by the 
+plotted values for the validation period (2002) 
+#Naive Forecast 
+validLength <- 12 
+trainLength <- length(souvenir.ts) - validLength 
+sSouvenirTrain <- window(souvenir.ts, start=c(1995,1), 
+end=c(1995,trainLength)) 
+sSouvenirValid <- window(souvenir.ts, start=c(1995,trainLength 
++ 1), end=c(1995,trainLength + validLength)) 
+# Seasonal naive forecast 
+snaiveForValid <- snaive(sSouvenirTrain, h=validLength) 
+# View Forecasts from the seasonal naive model 
+
+#Answer for 1C: 
+snaiveForValid$mean 
+#Plot Seasonal naive forecast 
+Snaive.pred <- snaive(training.ts, h = nValid) 
+plot(Snaive.pred, ylab = "Sales (in thousands)", xlab = "Date", 
+main = "Seasonal Naive Forecast") 
+
+D. Compute the RMSE and MAPE for the naive forecasts. 
+Shown below, the RMSE for the naive forecast is $9,542 in 
+sales and the MAPE is 27.3% (deviation from actual values) 
+#Accuracy - RMSE & MAPE 
+accuracy(snaiveForValid, sSouvenirValid) 
+
+E. Plot a histogram of the forecast errors that result from the 
+naive forecasts (for the validation period). Plot also a time 
+plot for the naive forecasts and the actual sales numbers 
+in the validation period. What can you say about the 
+behavior of the naive forecasts? 
+Histogram found below. The naive forecasts are 
+consistently underpredicting sales - for every period of the 
+forecast. The Histogram shows that there are many more 
+smaller (positive) errors than there are large. Together, we 
+can say that the naive forecast is underpredicting sales, 
+with the same kind of errors (all positive). 
+#validation residuals 
+souvenirValid <- snaive(souvenir.ts) 
+NaiveResidual <- validation.ts - Snaive.pred$mean 
+#Plot the histogram 
+myhist <- hist(NaiveResidual, ylab="Frequency", 
+xlab="Forecast Error", main="Forecast Errors of Naive Forecast 
+(Validation)", bty="l") 
+multiplier <- myhist$counts / myhist$density 
+mydensity <- density(NaiveResidual, na.rm=TRUE) 
+mydensity$y <- mydensity$y * multiplier[1] 
+# Add the density curve 
+lines(mydensity, lwd = 2, col = "blue") 
+#Plot Naive Forecast and Actual Sales (2001) 
+plot(sSouvenirValid/1000, bty="l", xaxt="n", xlab="Year: 2001", 
+main="Naive Forecast vs. Actual Sales", yaxt="n", ylab="Sales 
+(in thousands)") 
+axis(1, at=seq(2001,2001.917,0.08333), labels=c("Jan", "Feb", 
+"Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", 
+"Dec")) 
+axis(2, las=2) 
+# Now add the forecasts and make the line red and dashed 
+lines(Snaive.pred$mean, col=2, lty=2) 
+# Add a legend 
+legend(2001.3,100, c("Actual","Forecast"), col=1:2, lty=1:2) 
+# plot all residuals 
+plot(Snaive.pred$residuals, bty="l", ylab = "Residuals") 
+Residuals show generally underpredicted values to actual. 
+#Normality plot 
+qqnorm(Snaive.pred$residuals[13:72]) 
+qqline(Snaive.pred$residuals[13:72]) 
+Normality plot shows that errors are not normally 
+distributed. 
+#Normality plot (Validation period only) 
+qqnorm(sSouvenirValid/1000 - Snaive.pred$mean) 
+qqline(sSouvenirValid/1000 - Snaive.pred$mean) 
+Normality plot of Validation period shows that errors are not 
+normally distributed in the validation period - all residuals are 
+positive again showing the underpredicting of the model. 
+
+F.The analyst found a forecasting model that gives satisfactory 
+performance on the validation set. What must she do to use the 
+forecasting model for generating forecasts for year 2002? 
+The analyst must merge the two time-series periods 
+(training and validation periods). Once that is complete, 
+she can run the model she is using to predict forecasted 
+souvenir sales for 2002
